@@ -73,14 +73,13 @@ class Login_model extends CI_Model
                     'tbluser',
                     array('otp_verification' => 1, 'last_login' => date('y-m-d H:i:s', time()))
                 );
-                if ($this->db->affected_rows() > 0) {
                     return ['status' => 'true', 'message' => 'successfully verify', 'data' => $user];
                     // if ($user->profile_status) {
                     //     return ['status' => 'true', 'message' => 'successfully verify', 'data' => $user];
                     // } else {
                     //     return ['status' => 'profile_update', 'message' => 'successfully verify', 'data' => $user];
                     // }
-                }
+                
             } else {
                 return ['status' => 'false', 'message' => 'invalid otp, please try again with the correct otp'];
             }

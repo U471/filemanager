@@ -188,9 +188,9 @@ class Auth_controller extends CI_Controller
             if ($this->form_validation->run() == true) {
                 // $data = $this->Login->verifyUser($_POST);
                 $data = $this->Login->verifyUser($this->input->post('email'), $this->input->post('token'));
-                if ($data['status'] == 'true' || $data['status'] == 'profile_update') {
+             
+                if ($data['status']) {
                     $token = $this->getJwt($data['data']);
-                    log_message('debug', $data['message']);
                     return $this->output
                         ->set_content_type('application/json')
                         ->set_status_header(200)
