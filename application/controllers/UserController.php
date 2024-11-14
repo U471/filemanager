@@ -314,20 +314,20 @@ class UserController extends CI_Controller
         }
     }
 
-    // API to delete a folder
-    public function delete_folder()
+    // API to delete a folder or file
+    public function delete_folder_or_file()
     {
         if ($this->input->method(true) == 'POST') {
             $tokenData = $this->Auth->jwtDecoden($this->input->request_headers('x-auth-token'));
             if ($tokenData['status'] == 'true') {
-                // Get user_id, directory, and folder_name from POST data
+                // Get user_id, directory, and name (file or folder) from POST data
                 $user_id = $tokenData['data']->id;
                 $directory = $this->input->post('directory');  // Optional user-defined directory
-                $folder_name = $this->input->post('folder_name');  // Folder name to be deleted
+                $name = $this->input->post('name');  // File or folder name to be deleted
 
                 // Validate inputs
-                if (!$user_id || !$folder_name) {
-                    $response = array('status' => false, 'message' => 'User ID and Folder Name are required');
+                if (!$user_id || !$name) {
+                    $response = array('status' => false, 'message' => 'User ID and name are required');
                     return $this->output
                         ->set_content_type('application/json')
                         ->set_status_header(400)
@@ -342,24 +342,16 @@ class UserController extends CI_Controller
                 // Define the base path
                 $base_path = FCPATH . '/public/uploads/';  // Fixed base path
 
-                // Check if directory is provided, and build the full path accordingly
-                if (!empty($directory)) {
-                    // If directory is provided, include it in the path
-                    // $full_path = rtrim($base_path, '/') . '/' . $user_id . '/' . rtrim($directory, '/') . '/' . $folder_name . '/';
-                    $full_path = rtrim($base_path, '/') . '/' . $user_id . '/' . rtrim($directory, '/') . '/';
-                } else {
-                    // If no directory is provided, delete the folder directly under user_id
-                    $full_path = rtrim($base_path, '/') . '/' . $user_id . '/' . $folder_name . '/';
-                }
+                // Build the full path based on the directory and user_id
+                $full_path = rtrim($base_path, '/') . '/' . $user_id . '/' . (empty($directory) ? '' : rtrim($directory, '/') . '/') . $name;
 
-                // Security check: Ensure the generated path starts with the base path to avoid unsafe folder deletion
+                // Security check: Ensure the generated path starts with the base path to avoid unsafe deletion
                 $real_base_path = realpath($base_path);
                 $real_full_path = realpath($full_path);
 
                 if (!$real_full_path || strpos($real_full_path, $real_base_path) !== 0) {
                     // If the generated path is outside the allowed base path, return an error
-                    $response = array('status' => false, 'message' => 'Invalid directory path. Operation not allowed.');
-                    // Return response as JSON
+                    $response = array('status' => false, 'message' => 'Invalid directory or file path. Operation not allowed.');
                     return $this->output
                         ->set_content_type('application/json')
                         ->set_status_header(400)
@@ -371,20 +363,26 @@ class UserController extends CI_Controller
                         ));
                 }
 
-                // Check if the directory exists
-                if (is_dir($full_path)) {
-                    // Attempt to delete the directory
+                // Check if the path is a file or a directory
+                if (is_file($full_path)) {
+                    // If it's a file, attempt to delete it
+                    if (unlink($full_path)) {
+                        $response = array('status' => true, 'message' => 'File deleted successfully');
+                    } else {
+                        $response = array('status' => false, 'message' => 'Failed to delete file');
+                    }
+                } elseif (is_dir($full_path)) {
+                    // If it's a directory, attempt to delete it recursively
                     if ($this->delete_directory($full_path)) {
                         $response = array('status' => true, 'message' => 'Folder deleted successfully');
                     } else {
                         $response = array('status' => false, 'message' => 'Failed to delete folder. Ensure the folder is empty.');
                     }
                 } else {
-                    // If the folder does not exist
-                    $response = array('status' => false, 'message' => 'Folder does not exist');
+                    // If the file or folder does not exist
+                    $response = array('status' => false, 'message' => 'File or folder does not exist');
                 }
 
-                // Return response as JSON
                 // Return response as JSON
                 return $this->output
                     ->set_content_type('application/json')
@@ -392,7 +390,6 @@ class UserController extends CI_Controller
                     ->set_output(json_encode(
                         array(
                             'status' => $response['status'],
-                            'data' => isset($response['path']) ? $response['path'] : '',
                             'message' => $response['message'],
                         )
                     ));
